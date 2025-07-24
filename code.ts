@@ -175,7 +175,7 @@ function processExports(imageNodes: ImageInfo[], strategy: NamingStrategy): { pr
       const count = pathCounts.get(fullPath) || 0;
       pathCounts.set(fullPath, count + 1);
       
-      const finalImageName = count > 0 ? `${fullPath}_${count}` : fullPath;
+      const finalImageName = count > 0 ? `${fullPath}${count}` : fullPath;
       
       result.push({
         processedPath: '', // 所有文件都在根目录
