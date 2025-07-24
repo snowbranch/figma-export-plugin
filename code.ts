@@ -57,7 +57,7 @@ function collectImageNodes(
 }
 
 function sanitizeName(name: string): string {
-  return name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_').trim();
+  return name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_').replace(/_/g, '+').trim();
 }
 
 // 查找多个节点的共同父节点
@@ -135,169 +135,87 @@ function collectImageNodesFromParent(parent: BaseNode, selectedNodes: readonly S
 function processExports(imageNodes: ImageInfo[], strategy: NamingStrategy): { processedPath: string; imageName: string; imageInfo: ImageInfo }[] {
   const result: { processedPath: string; imageName: string; imageInfo: ImageInfo }[] = [];
   
+  // 新的统一处理逻辑：构建层级路径并重命名同名节点
+  if (strategy === 'suffix') {
+    // 为每个图片构建完整的层级路径（从根节点到图片节点）
+    const processedImages: { fullPath: string; imageInfo: ImageInfo }[] = [];
+    
+    for (const imageInfo of imageNodes) {
+      // 构建完整路径：父节点路径 + 图片节点名
+      const pathParts: string[] = [];
+      
+      // 添加父节点名称
+      if (imageInfo.parentOriginalNames && imageInfo.parentOriginalNames.length > 0) {
+        pathParts.push(...imageInfo.parentOriginalNames.map(name => sanitizeName(name)));
+      }
+      
+      // 添加图片节点本身的名称
+      pathParts.push(sanitizeName(imageInfo.name));
+      
+      const fullPath = pathParts.join('+');
+      processedImages.push({ fullPath, imageInfo });
+    }
+    
+    // 处理同名路径，添加编号后缀
+    const pathCounts = new Map<string, number>();
+    
+    for (const { fullPath, imageInfo } of processedImages) {
+      const count = pathCounts.get(fullPath) || 0;
+      pathCounts.set(fullPath, count + 1);
+      
+      const finalImageName = count > 0 ? `${fullPath}+${count}` : fullPath;
+      
+      result.push({
+        processedPath: '', // 所有文件都在根目录
+        imageName: finalImageName,
+        imageInfo
+      });
+    }
+    
+    return result;
+  }
+  
   if (strategy === 'id') {
     // 使用节点ID策略
     for (const imageInfo of imageNodes) {
-      const pathParts = imageInfo.parentNodeIds.map(id => id);
-      const processedPath = pathParts.join('/');
-      const imageName = imageInfo.nodeId;
-      result.push({ processedPath, imageName, imageInfo });
+      const pathParts: string[] = [];
+      
+      // 添加父节点ID
+      if (imageInfo.parentNodeIds && imageInfo.parentNodeIds.length > 0) {
+        pathParts.push(...imageInfo.parentNodeIds);
+      }
+      
+      // 添加图片节点ID
+      pathParts.push(imageInfo.nodeId);
+      
+      const finalImageName = pathParts.join('+');
+      
+      result.push({ 
+        processedPath: '', // 所有文件都在根目录
+        imageName: finalImageName, 
+        imageInfo 
+      });
     }
-  } else if (strategy === 'suffix') {
-    // 自动添加后缀策略 - 基于节点ID结构，然后重命名
-    console.log('Starting suffix strategy processing');
-    console.log('Image nodes:', imageNodes.map(n => ({ 
-      name: n.name, 
-      path: n.path,
-      parentOriginalNames: n.parentOriginalNames 
-    })));
-    
-    // 第一步：基于节点结构建立完整的树
-    interface TreeNode {
-      id: string;
-      originalName: string;
-      children: Map<string, TreeNode>;
-      images: ImageInfo[];
-    }
-    
-    const root: TreeNode = {
-      id: 'root',
-      originalName: '',
-      children: new Map(),
-      images: []
-    };
-    
-    // 构建树结构
+  } else if (strategy === 'merge') {
+    // merge策略 - 使用层级路径但保持文件夹结构
     for (const imageInfo of imageNodes) {
-      let currentNode = root;
+      const pathParts: string[] = [];
       
-      // 遍历父节点路径
-      for (let i = 0; i < imageInfo.parentNodeIds.length; i++) {
-        const nodeId = imageInfo.parentNodeIds[i];
-        const originalName = imageInfo.parentOriginalNames?.[i] || nodeId;
-        
-        if (!currentNode.children.has(nodeId)) {
-          currentNode.children.set(nodeId, {
-            id: nodeId,
-            originalName: originalName,
-            children: new Map(),
-            images: []
-          });
-        }
-        currentNode = currentNode.children.get(nodeId)!;
+      // 添加父节点名称
+      if (imageInfo.parentOriginalNames && imageInfo.parentOriginalNames.length > 0) {
+        pathParts.push(...imageInfo.parentOriginalNames.map(name => sanitizeName(name)));
       }
       
-      // 将图片添加到最终节点
-      currentNode.images.push(imageInfo);
-    }
-    
-    // 第二步：遍历树并重命名
-    function processTree(node: TreeNode, parentPath: string = ''): void {
-      // 处理当前节点的所有子节点
-      const childrenByName = new Map<string, TreeNode[]>();
+      // 添加图片节点本身的名称
+      pathParts.push(sanitizeName(imageInfo.name));
       
-      // 按原始名称分组
-      for (const [id, child] of node.children) {
-        const name = sanitizeName(child.originalName);
-        if (!childrenByName.has(name)) {
-          childrenByName.set(name, []);
-        }
-        childrenByName.get(name)!.push(child);
-      }
+      const finalImageName = pathParts.join('+');
       
-      // 为同名节点添加后缀
-      for (const [name, nodes] of childrenByName) {
-        if (nodes.length === 1) {
-          // 只有一个，不需要后缀
-          const child = nodes[0];
-          const childPath = parentPath ? `${parentPath}/${name}` : name;
-          
-          // 处理该节点下的图片
-          for (const img of child.images) {
-            const imageName = sanitizeName(img.name);
-            result.push({ 
-              processedPath: childPath, 
-              imageName, 
-              imageInfo: img 
-            });
-          }
-          
-          // 递归处理子节点
-          processTree(child, childPath);
-        } else {
-          // 有多个同名节点，需要添加后缀
-          for (let i = 0; i < nodes.length; i++) {
-            const child = nodes[i];
-            const suffixedName = i === 0 ? name : `${name}_${i}`;
-            const childPath = parentPath ? `${parentPath}/${suffixedName}` : suffixedName;
-            
-            // 处理该节点下的图片
-            for (const img of child.images) {
-              const imageName = sanitizeName(img.name);
-              result.push({ 
-                processedPath: childPath, 
-                imageName, 
-                imageInfo: img 
-              });
-            }
-            
-            // 递归处理子节点
-            processTree(child, childPath);
-          }
-        }
-      }
-      
-      // 处理直接在当前节点下的图片（没有子文件夹）
-      const imagesByName = new Map<string, ImageInfo[]>();
-      for (const img of node.images) {
-        const name = sanitizeName(img.name);
-        if (!imagesByName.has(name)) {
-          imagesByName.set(name, []);
-        }
-        imagesByName.get(name)!.push(img);
-      }
-      
-      for (const [name, images] of imagesByName) {
-        if (images.length === 1) {
-          result.push({ 
-            processedPath: parentPath, 
-            imageName: name, 
-            imageInfo: images[0] 
-          });
-        } else {
-          for (let i = 0; i < images.length; i++) {
-            const suffixedName = i === 0 ? name : `${name}_${i}`;
-            result.push({ 
-              processedPath: parentPath, 
-              imageName: suffixedName, 
-              imageInfo: images[i] 
-            });
-          }
-        }
-      }
-    }
-    
-    processTree(root);
-    
-    // 输出处理结果
-    for (const item of result) {
-      console.log(`Processed: ${item.processedPath}/${item.imageName}`);
-    }
-    
-  } else {
-    // merge策略 - 合并同名文件夹
-    const nameCounts = new Map<string, number>();
-    
-    for (const imageInfo of imageNodes) {
-      const processedPath = imageInfo.path;
-      
-      // 只处理同名图片文件
-      const nameKey = `${processedPath}/${imageInfo.name}`;
-      const nameCount = nameCounts.get(nameKey) || 0;
-      const imageName = nameCount > 0 ? `${sanitizeName(imageInfo.name)}_${nameCount}` : sanitizeName(imageInfo.name);
-      nameCounts.set(nameKey, nameCount + 1);
-      
-      result.push({ processedPath, imageName, imageInfo });
+      result.push({
+        processedPath: '', // 所有文件都在根目录
+        imageName: finalImageName,
+        imageInfo
+      });
     }
   }
   
@@ -321,7 +239,8 @@ async function exportImageNode(node: BaseNode, processedPath: string, imageName:
       constraint: { type: 'SCALE', value: 2 }
     });
     
-    const fileName = processedPath ? `${processedPath}/${imageName}.png` : `${imageName}.png`;
+    // 所有文件都导出到根目录，使用完整的层级名称
+    const fileName = `${imageName}.png`;
     console.log(`Successfully exported: ${fileName}`);
     
     return { name: fileName, bytes };

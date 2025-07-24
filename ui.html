@@ -191,17 +191,18 @@
     <div class="info">
       <strong>使用说明：</strong><br>
       1. 在Figma中选择包含图片的节点<br>
-      2. 选择同名文件处理方式<br>
+      2. 选择命名策略（推荐使用"自动添加后缀"）<br>
       3. 点击"开始导出"按钮<br>
-      4. 插件将只导出其中的图片资源（IMAGE类型）
+      4. 图片将使用完整层级路径命名，用+连接各级节点名<br>
+      5. 同名节点会自动添加编号后缀，所有图片导出到同一文件夹
     </div>
     
     <div class="option-group">
-      <label for="namingStrategy">同名文件处理方式：</label>
+      <label for="namingStrategy">图片命名策略：</label>
       <select id="namingStrategy">
-        <option value="suffix">自动添加后缀 (_1, _2...)</option>
-        <option value="id">使用节点ID命名</option>
-        <option value="merge">合并到同一文件夹</option>
+        <option value="suffix">层级路径+同名重编号（推荐）</option>
+        <option value="id">使用节点ID层级路径</option>
+        <option value="merge">简化层级路径</option>
       </select>
     </div>
     
