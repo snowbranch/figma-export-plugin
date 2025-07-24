@@ -28,23 +28,34 @@ function collectImageNodes(
   const currentOriginalNames = includeRoot || parentOriginalNames.length > 0 ? 
     [...parentOriginalNames, node.name] : [];
   
-  // 检查是否为图片节点
-  if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE' || node.type === 'POLYGON' || node.type === 'STAR' || node.type === 'VECTOR') {
-    const rectNode = node as GeometryMixin;
-    if (rectNode.fills && rectNode.fills !== figma.mixed && rectNode.fills.length > 0) {
-      const fill = rectNode.fills[0];
-      if (fill.type === 'IMAGE') {
-        console.log(`Found image node: ${node.name} (type: ${node.type})`);
-        images.push({
-          id: node.id,
-          name: node.name,
-          path: currentPath,
-          nodeId: node.id,
-          parentNodeIds: [...currentNodeIds],
-          parentOriginalNames: [...currentOriginalNames]
-        });
+  // 检查是否为有图片填充的节点 - 检查所有可能有fills属性的节点类型
+  function hasImageFill(node: BaseNode): boolean {
+    // 检查节点是否有fills属性
+    if ('fills' in node) {
+      const fillNode = node as any;
+      if (fillNode.fills && fillNode.fills !== figma.mixed && fillNode.fills.length > 0) {
+        // 遍历所有fills，寻找IMAGE类型
+        for (const fill of fillNode.fills) {
+          if (fill && fill.type === 'IMAGE') {
+            return true;
+          }
+        }
       }
     }
+    return false;
+  }
+  
+  // 检查当前节点是否包含图片填充
+  if (hasImageFill(node)) {
+    console.log(`Found image node: ${node.name} (type: ${node.type})`);
+    images.push({
+      id: node.id,
+      name: node.name,
+      path: currentPath,
+      nodeId: node.id,
+      parentNodeIds: [...currentNodeIds],
+      parentOriginalNames: [...currentOriginalNames]
+    });
   }
   
   // 递归处理子节点 - 无论当前节点是否为图片节点都要继续遍历
