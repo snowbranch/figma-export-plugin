@@ -164,7 +164,7 @@ function processExports(imageNodes: ImageInfo[], strategy: NamingStrategy): { pr
       // 添加图片节点本身的名称
       pathParts.push(sanitizeName(imageInfo.name));
       
-      const fullPath = pathParts.join('+');
+      const fullPath = pathParts.join('_');
       processedImages.push({ fullPath, imageInfo });
     }
     
@@ -175,7 +175,7 @@ function processExports(imageNodes: ImageInfo[], strategy: NamingStrategy): { pr
       const count = pathCounts.get(fullPath) || 0;
       pathCounts.set(fullPath, count + 1);
       
-      const finalImageName = count > 0 ? `${fullPath}+${count}` : fullPath;
+      const finalImageName = count > 0 ? `${fullPath}_${count}` : fullPath;
       
       result.push({
         processedPath: '', // 所有文件都在根目录
@@ -200,7 +200,7 @@ function processExports(imageNodes: ImageInfo[], strategy: NamingStrategy): { pr
       // 添加图片节点ID
       pathParts.push(imageInfo.nodeId);
       
-      const finalImageName = pathParts.join('+');
+      const finalImageName = pathParts.join('_');
       
       result.push({ 
         processedPath: '', // 所有文件都在根目录
@@ -221,7 +221,7 @@ function processExports(imageNodes: ImageInfo[], strategy: NamingStrategy): { pr
       // 添加图片节点本身的名称
       pathParts.push(sanitizeName(imageInfo.name));
       
-      const finalImageName = pathParts.join('+');
+      const finalImageName = pathParts.join('_');
       
       result.push({
         processedPath: '', // 所有文件都在根目录
