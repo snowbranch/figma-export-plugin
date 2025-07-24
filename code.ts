@@ -20,6 +20,14 @@ function collectImageNodes(
 ): ImageInfo[] {
   const images: ImageInfo[] = [];
   
+  // 更新当前路径信息
+  const currentPath = (parentPath || includeRoot) ? 
+    (parentPath ? `${parentPath}/${sanitizeName(node.name)}` : sanitizeName(node.name)) : 
+    "";
+  const currentNodeIds = includeRoot || parentNodeIds.length > 0 ? [...parentNodeIds, node.id] : [];
+  const currentOriginalNames = includeRoot || parentOriginalNames.length > 0 ? 
+    [...parentOriginalNames, node.name] : [];
+  
   // 检查是否为图片节点
   if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE' || node.type === 'POLYGON' || node.type === 'STAR' || node.type === 'VECTOR') {
     const rectNode = node as GeometryMixin;
@@ -30,24 +38,17 @@ function collectImageNodes(
         images.push({
           id: node.id,
           name: node.name,
-          path: parentPath,
+          path: currentPath,
           nodeId: node.id,
-          parentNodeIds: [...parentNodeIds],
-          parentOriginalNames: [...parentOriginalNames]
+          parentNodeIds: [...currentNodeIds],
+          parentOriginalNames: [...currentOriginalNames]
         });
       }
     }
   }
   
-  // 递归处理子节点
+  // 递归处理子节点 - 无论当前节点是否为图片节点都要继续遍历
   if ("children" in node) {
-    const currentPath = (parentPath || includeRoot) ? 
-      (parentPath ? `${parentPath}/${sanitizeName(node.name)}` : sanitizeName(node.name)) : 
-      "";
-    const currentNodeIds = includeRoot || parentNodeIds.length > 0 ? [...parentNodeIds, node.id] : [];
-    const currentOriginalNames = includeRoot || parentOriginalNames.length > 0 ? 
-      [...parentOriginalNames, node.name] : [];
-    
     for (const child of node.children) {
       images.push(...collectImageNodes(child, currentPath, currentNodeIds, currentOriginalNames, false));
     }
@@ -57,7 +58,7 @@ function collectImageNodes(
 }
 
 function sanitizeName(name: string): string {
-  return name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_').replace(/_/g, '+').trim();
+  return name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_').replace(/_/g, '').trim();
 }
 
 // 查找多个节点的共同父节点
