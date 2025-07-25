@@ -310,90 +310,91 @@ figma.ui.onmessage = async (msg) => {
     try {
       const namingStrategy = msg.namingStrategy as NamingStrategy || 'suffix';
       const exportAll = msg.exportAll || false;
-    
-    let imageNodes: ImageInfo[] = [];
-    
-    if (exportAll) {
-      // 导出当前页面的所有图片
-      imageNodes = collectImageNodes(figma.currentPage);
-    } else {
-      // 导出选中节点的图片
+      
+      // 获取选中节点，即使是exportAll也需要用于重命名逻辑
       const selection = figma.currentPage.selection;
-      
-      if (selection.length === 0) {
-        figma.ui.postMessage({
-          type: 'error',
-          message: '请先选择一个节点，或勾选"导出当前页面的所有图片"'
-        });
-        return;
-      }
-      
-      // 如果只选择了一个节点，直接处理
-      if (selection.length === 1) {
-        imageNodes = collectImageNodes(selection[0], "", [], [], true);
-      } else {
-        // 如果选择了多个节点，找到它们的共同父节点
-        const commonParent = findCommonParent(selection);
-        if (commonParent) {
-          // 从共同父节点开始收集，但只包含选中的节点
-          imageNodes = collectImageNodesFromParent(commonParent, selection);
-        } else {
-          // 如果没有共同父节点，分别处理每个节点
-          for (const selectedNode of selection) {
-            imageNodes.push(...collectImageNodes(selectedNode));
-          }
-        }
-      }
-    }
     
-    if (imageNodes.length === 0) {
-      figma.ui.postMessage({
-        type: 'error',
-        message: exportAll ? '当前页面中没有找到图片资源' : '选中的节点中没有找到图片资源'
-      });
-      return;
-    }
+      let imageNodes: ImageInfo[] = [];
     
-    // 在导出前重命名同名节点
-    if (namingStrategy === 'suffix') {
       if (exportAll) {
-        renameDuplicateNodes(figma.currentPage);
-      } else {
-        // 对选中的节点进行重命名
-        if (selection.length === 1) {
-          renameDuplicateNodes(selection[0]);
-        } else {
-          const commonParent = findCommonParent(selection);
-          if (commonParent) {
-            renameDuplicateNodes(commonParent);
-          } else {
-            // 如果没有共同父节点，分别处理每个节点
-            for (const selectedNode of selection) {
-              renameDuplicateNodes(selectedNode);
-            }
-          }
-        }
-      }
-      
-      // 重命名后重新收集图片节点信息
-      if (exportAll) {
+        // 导出当前页面的所有图片
         imageNodes = collectImageNodes(figma.currentPage);
       } else {
+        // 导出选中节点的图片
+        if (selection.length === 0) {
+          figma.ui.postMessage({
+            type: 'error',
+            message: '请先选择一个节点，或勾选"导出当前页面的所有图片"'
+          });
+          return;
+        }
+        
+        // 如果只选择了一个节点，直接处理
         if (selection.length === 1) {
           imageNodes = collectImageNodes(selection[0], "", [], [], true);
         } else {
+          // 如果选择了多个节点，找到它们的共同父节点
           const commonParent = findCommonParent(selection);
           if (commonParent) {
+            // 从共同父节点开始收集，但只包含选中的节点
             imageNodes = collectImageNodesFromParent(commonParent, selection);
           } else {
-            imageNodes = [];
+            // 如果没有共同父节点，分别处理每个节点
             for (const selectedNode of selection) {
               imageNodes.push(...collectImageNodes(selectedNode));
             }
           }
         }
       }
-    }
+    
+      if (imageNodes.length === 0) {
+        figma.ui.postMessage({
+          type: 'error',
+          message: exportAll ? '当前页面中没有找到图片资源' : '选中的节点中没有找到图片资源'
+        });
+        return;
+      }
+    
+      // 在导出前重命名同名节点
+      if (namingStrategy === 'suffix') {
+        if (exportAll) {
+          renameDuplicateNodes(figma.currentPage);
+        } else {
+          // 对选中的节点进行重命名
+          if (selection.length === 1) {
+            renameDuplicateNodes(selection[0]);
+          } else {
+            const commonParent = findCommonParent(selection);
+            if (commonParent) {
+              renameDuplicateNodes(commonParent);
+            } else {
+              // 如果没有共同父节点，分别处理每个节点
+              for (const selectedNode of selection) {
+                renameDuplicateNodes(selectedNode);
+              }
+            }
+          }
+        }
+        
+        // 重命名后重新收集图片节点信息
+        if (exportAll) {
+          imageNodes = collectImageNodes(figma.currentPage);
+        } else {
+          if (selection.length === 1) {
+            imageNodes = collectImageNodes(selection[0], "", [], [], true);
+          } else {
+            const commonParent = findCommonParent(selection);
+            if (commonParent) {
+              imageNodes = collectImageNodesFromParent(commonParent, selection);
+            } else {
+              imageNodes = [];
+              for (const selectedNode of selection) {
+                imageNodes.push(...collectImageNodes(selectedNode));
+              }
+            }
+          }
+        }
+      }
     
     // 处理导出路径和名称
     console.log('Processing exports for', imageNodes.length, 'images');
