@@ -69,7 +69,7 @@ function collectImageNodes(
 }
 
 function sanitizeName(name: string): string {
-  return name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_').replace(/_/g, '').trim();
+  return name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_').trim();
 }
 
 // 查找多个节点的共同父节点
@@ -331,7 +331,14 @@ figma.ui.onmessage = async (msg) => {
         
         // 如果只选择了一个节点，直接处理
         if (selection.length === 1) {
-          imageNodes = collectImageNodes(selection[0], "", [], [], true);
+          // 构建父节点路径
+          const parentNames: string[] = [];
+          let current = selection[0].parent;
+          while (current && current.type !== 'PAGE') {
+            parentNames.unshift(current.name);
+            current = current.parent;
+          }
+          imageNodes = collectImageNodes(selection[0], "", [], parentNames, true);
         } else {
           // 如果选择了多个节点，找到它们的共同父节点
           const commonParent = findCommonParent(selection);
@@ -341,7 +348,14 @@ figma.ui.onmessage = async (msg) => {
           } else {
             // 如果没有共同父节点，分别处理每个节点
             for (const selectedNode of selection) {
-              imageNodes.push(...collectImageNodes(selectedNode));
+              // 构建每个节点的父节点路径
+              const parentNames: string[] = [];
+              let current = selectedNode.parent;
+              while (current && current.type !== 'PAGE') {
+                parentNames.unshift(current.name);
+                current = current.parent;
+              }
+              imageNodes.push(...collectImageNodes(selectedNode, "", [], parentNames, true));
             }
           }
         }
@@ -381,7 +395,14 @@ figma.ui.onmessage = async (msg) => {
           imageNodes = collectImageNodes(figma.currentPage);
         } else {
           if (selection.length === 1) {
-            imageNodes = collectImageNodes(selection[0], "", [], [], true);
+            // 构建父节点路径
+            const parentNames: string[] = [];
+            let current = selection[0].parent;
+            while (current && current.type !== 'PAGE') {
+              parentNames.unshift(current.name);
+              current = current.parent;
+            }
+            imageNodes = collectImageNodes(selection[0], "", [], parentNames, true);
           } else {
             const commonParent = findCommonParent(selection);
             if (commonParent) {
@@ -389,7 +410,14 @@ figma.ui.onmessage = async (msg) => {
             } else {
               imageNodes = [];
               for (const selectedNode of selection) {
-                imageNodes.push(...collectImageNodes(selectedNode));
+                // 构建每个节点的父节点路径
+                const parentNames: string[] = [];
+                let current = selectedNode.parent;
+                while (current && current.type !== 'PAGE') {
+                  parentNames.unshift(current.name);
+                  current = current.parent;
+                }
+                imageNodes.push(...collectImageNodes(selectedNode, "", [], parentNames, true));
               }
             }
           }
